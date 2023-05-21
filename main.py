@@ -3,14 +3,16 @@ import json
 from flask import Flask, request, render_template, redirect, url_for, flash
 from json import loads
 from base64 import b64decode
-from google.cloud import firestore
-from flask_login import LoginManager, current_user, login_user, logout_user, login_required, UserMixin
+#from google.cloud import firestore
+#from flask_login import LoginManager, current_user, login_user, logout_user, login_required, UserMixin
 #from secret import secret_key
 import paho.mqtt.client as mqtt
 import time
+from google.cloud import firestore
+from requests import get, post
 
 #Variabili da impostare
-filePath = "C:\\Users\\Francesco Mindoli\Desktop\Mamei\Csv progetto"
+filePath = "C:\\Users\\Francesco Mindoli\PycharmProjects\ProgettoMameiIoT" #!!!! to modify
 xlsEnergia = "Consumo di Energia_Storico.xls"
 xlsPotenza = "Potenza_Storico.xls"
 csvEnergia = filePath + "\Consumo di Energia_Storico.csv"
@@ -58,7 +60,6 @@ print(df1)
 df.to_csv(csvEnergia, index=False)
 df1.to_csv(csvPotenza, index=False)
 
-
 # connessione al broker MQTT
 mqtt_client = mqtt.Client(f'ProgettoMameiIoT-{sensor}')
 #mqtt_client.on_connect = on_connect
@@ -66,7 +67,23 @@ mqtt_client.connect(broker_ip, portaMosquito)
 mqtt_client.loop_start()
 
 # apertura del file data e invio dei dati al server
-
+print("Inizio csv Potenza")
+c=0
+with open(csvPotenza) as f:
+    for line in f:
+        if (c > 0):
+            for i in range(5):
+                print(sensor, 'invio...', i)
+                infot = mqtt_client.publish(f'ProgettoMameiIoT/potenza/sensor/{sensor}', f'val={line.strip()}')
+                infot.wait_for_publish()
+                print('Message Sent: ' + line.strip())
+                if i == 4:
+                    time.sleep(10)
+                else:
+                    time.sleep(1)
+        else:
+            print("Saltiamo l'header")
+            c+=1
 print("Inizio csv Energia")
 c=0
 with open(csvEnergia) as f:
@@ -92,32 +109,4 @@ with open(csvEnergia) as f:
             print("Saltiamo l'header")
             c+=1
 
-print("Inizio csv Potenza")
-c=0
-with open(csvPotenza) as f:
-    for line in f:
-        if (c > 0):
-            print(sensor, 'invio....')
-            infot = mqtt_client.publish(f'ProgettoMameiIoT/potenza/sensor/{sensor}', f'val={line.strip()}')
-            infot.wait_for_publish()
-            print('Message Sent: ' + line.strip())
-            time.sleep(1)
-            print(sensor, 'invio 2....')
-            infot = mqtt_client.publish(f'ProgettoMameiIoT/potenza/sensor/{sensor}', f'val={line.strip()}')
-            infot.wait_for_publish()
-            print('Message Sent: ' + line.strip())
-            time.sleep(1)
-            print(sensor, 'invio 3....')
-            infot = mqtt_client.publish(f'ProgettoMameiIoT/potenza/sensor/{sensor}', f'val={line.strip()}')
-            infot.wait_for_publish()
-            print('Message Sent: ' + line.strip())
-            time.sleep(3)
-        else:
-            print("Saltiamo l'header")
-            c+=1
-
 mqtt_client.loop_stop()
-
-# chiusura della connessione al broker MQTT
-mqtt_client.disconnect()
-print("Chiusura della connessione al broker MQTT")
