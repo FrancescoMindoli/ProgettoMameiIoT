@@ -188,7 +188,7 @@ def get_data(s):
     print('entity', entity)
     if entity.exists:
         print('bello mio')
-        return json.dumps(entity.to_dict()['values']), 200
+        return json.dumps(entity.to_dict()['date_val']), 200
     else:
         print('sono fatto')
         return 'sensor not found', 404
