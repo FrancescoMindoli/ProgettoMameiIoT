@@ -12,10 +12,12 @@ from google.cloud import firestore
 from requests import get, post
 
 #Variabili da impostare
-filePath = "C:\\Users\\Francesco Mindoli\PycharmProjects\ProgettoMameiIoT" #!!!! to modify
-xlsEnergia = "Consumo di Energia_Storico.xls"
+filePath = "C:\\Users\\Francesco Mindoli\PycharmProjects\Progetto Mamei FIN" #!!!! to modify
+#filePath = "C:\\Users\\Jonathan\Desktop\Csv"
+#xlsEnergia = "Consumo di Energia_Storico.xls"
+xlsEnergia = "Frigorifero_EnergiaFM.xls"
 xlsPotenza = "Potenza_Storico.xls"
-csvEnergia = filePath + "\Consumo di Energia_Storico.csv"
+csvEnergia = filePath + "\Frigorifero_EnergiaFM.csv"
 csvPotenza = filePath +  "\Potenza_Storico.csv"
 defaultTopicE = "/sensor/energia"
 defaultTopicP = "/sensor/potenza"
@@ -67,46 +69,21 @@ mqtt_client.connect(broker_ip, portaMosquito)
 mqtt_client.loop_start()
 
 # apertura del file data e invio dei dati al server
-print("Inizio csv Potenza")
-c=0
-with open(csvPotenza) as f:
-    for line in f:
-        if (c > 0):
-            for i in range(5):
-                print(sensor, 'invio...', i)
-                infot = mqtt_client.publish(f'ProgettoMameiIoT/potenza/sensor/{sensor}', f'val={line.strip()}')
-                infot.wait_for_publish()
-                print('Message Sent: ' + line.strip())
-                if i == 4:
-                    time.sleep(10)
-                else:
-                    time.sleep(1)
-        else:
-            print("Saltiamo l'header")
-            c+=1
 print("Inizio csv Energia")
 c=0
 with open(csvEnergia) as f:
     for line in f:
         if(c>0):
-            print(sensor, 'invio....')
-            infot = mqtt_client.publish(f'ProgettoMameiIoT/energia/sensor/{sensor}', f'val={line.strip()}')
-            infot.wait_for_publish()
-            print('Message Sent: ' + line.strip())
-            time.sleep(1)
-            print(sensor, 'invio 2....')
-            infot = mqtt_client.publish(f'ProgettoMameiIoT/energia/sensor/{sensor}', f'val={line.strip()}')
-            infot.wait_for_publish()
-            print('Message Sent: ' + line.strip())
-            time.sleep(1)
-            print(sensor, 'invio 3....')
-            infot = mqtt_client.publish(f'ProgettoMameiIoT/energia/sensor/{sensor}', f'val={line.strip()}')
-            infot.wait_for_publish()
-            print('Message Sent: ' + line.strip())
-            time.sleep(3)
-            c+=1
+            for i in range(2):
+                print(sensor, 'invio...', i)
+                infot = mqtt_client.publish(f'ProgettoMameiIoT/energia/sensor/{sensor}', f'val={line.strip()}')
+                infot.wait_for_publish()
+                print('Message Sent: ' + line.strip())
+                if i == 1:
+                    time.sleep(30)
+                else:
+                    time.sleep(15)
         else:
             print("Saltiamo l'header")
-            c+=1
-
+            c += 1
 mqtt_client.loop_stop()
