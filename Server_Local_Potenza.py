@@ -204,9 +204,9 @@ def login():
     user = db.collection('utenti').document(username).get()
     if user.exists and user.to_dict()['password']==password:
         login_user(User(username))
-        next_page = request.args.get('/static/home.html')
+        next_page = request.args.get('/static/home_admin.html')
         if not next_page:
-            next_page = '/static/home.html'
+            next_page = '/static/home_admin.html'
         return redirect(next_page)
     return redirect('/static/login.html')
 
@@ -218,7 +218,7 @@ def logout():
 
 @app.route('/home')
 def home():
-    return redirect('/static/home.html')
+    return redirect('/static/home_admin.html')
 
 @app.route('/adduser', methods=['GET','POST'])
 @login_required
@@ -232,7 +232,7 @@ def adduser():
             db = firestore.Client.from_service_account_json('Credentials.json')
             user = db.collection('utenti').document(username)
             user.set({'username':username,'password':password})
-            return redirect('/static/utente_presente.html')
+            return redirect('/static/utente_inserito.html')
     else:
         return redirect('/')
 

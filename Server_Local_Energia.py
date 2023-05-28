@@ -1,5 +1,4 @@
 import paho.mqtt.client as mqtt
-from flask import Flask, request
 import json
 from google.cloud import firestore
 from secret import secret_key
@@ -9,14 +8,10 @@ from flask_login import LoginManager, current_user, login_user, logout_user, log
 from flask import Flask,request,render_template,redirect,url_for
 import numpy as np
 from sklearn.linear_model import LinearRegression
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from datetime import timedelta
 import datetime
-import tkinter as tk
-import tkinter as tk
-from tkinter import messagebox
-import threading
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import auth
 
 prima_previsione = 0
 def on_connectE(client, userdata, flags, rc):
@@ -129,6 +124,7 @@ def load_user(username):
         return User(username)
     return None
 
+'''
 @app.route('/',methods=['GET','POST'])
 @app.route('/main',methods=['GET','POST'])
 @app.route('/sensors',methods=['GET'])
@@ -137,8 +133,46 @@ def main():
     s = []
     for doc in db.collection('sensors').stream():
         s.append(doc.id)
-    return json.dumps(s), 200
+    return json.dumps(s), 200'''
+'''
+@app.route('/sensors/scostamenti/<s>',methods=['POST'])
+def add_scost(s):
+    s2 = s+'_scostamenti'
+    data_scost = request.values['data_scost']
+    scostamento = float(request.values['scostamento'])
+    date_scost = {'date': data_scost, 'scostamento': scostamento}
+    #val = request.values['val']
+    #print('sono in add data date', date)
+    #print('sono in add data val', val)
+    #print('sono in add pred', date_pred)
+    db = firestore.Client.from_service_account_json('Credentials.json')
+    doc_ref_scost = db.collection('sensors').document(s2)
+    entity_scost = doc_ref_scost.get()
+    #print("Entity: ", entity)
+    documento_ref = db.collection('sensors').document(s2)
+    documento = documento_ref.get()
+    if entity_scost.exists and 'scostamento' in entity_scost.to_dict():
+        # se frigorigero_pred esiste e se ha una colonna prediction
+        d_scost = entity_scost.to_dict()['scostamento']
+        #print("d prima di rimuovere: ", d)
+        valore_da_rimuovere = remove_dup('sensors', s2, 'scostamento', data_scost)
+        if valore_da_rimuovere != '' and valore_da_rimuovere in d_scost:
+            d_scost.remove(valore_da_rimuovere)
+        #print("d dopo di rimuovere: ", d)
+        d_scost.append(date_scost)
+        #print('d con append', d_pred)
+        doc_ref_scost.update({'scostamento': d_scost})
+    else:
+        # se frigorigero_pred non esiste, aggiungi tutto
+        print('Sono in SET')
+        doc_ref_scost.set({'scostamento': [date_scost]})
+        print('date_val in set: ', date_scost)
+    return 'ok', 200
 
+    #doc_ref.set({'prediction': [prediction]})
+    #print('date_val in set: ', prediction)
+    #return 'ok',200
+'''
 
 @app.route('/sensors/prediction/<s>',methods=['POST'])
 def add_prediction(s):
@@ -213,7 +247,7 @@ def add_data(s):
         #print('date_val in set: ', date_val)
     return 'ok',200
 
-@app.route('/sensors/<s>',methods=['GET'])
+'''@app.route('/sensors/<s>',methods=['GET'])
 def get_data(s):
     db = firestore.Client.from_service_account_json('Credentials.json')
     entity = db.collection('sensors').document(s).get()
@@ -221,21 +255,22 @@ def get_data(s):
     if entity.exists:
         return json.dumps(entity.to_dict()['energia']), 200
     else:
-        return 'sensor not found', 404
+        return 'sensor not found', 404'''
 
-@app.route('/graph/<s>',methods=['GET'])
+@app.route('/graph/<s>',methods=['GET','POST'])
 @login_required
 def graph_data(s):
     db = firestore.Client.from_service_account_json('Credentials.json')
     entity = db.collection('sensors').document(s).get()
     if entity.exists:
         di = []
-        di.append(['Number',s])
+        di.append(['Number','Serie Storica'])
         #x la data
         #y i valori
         for x in entity.to_dict()['energia']:
             di.append([x['date'], x['val']])
             new_entry = x['val']
+            new_date = x['date']
             #print('x,y', (x['date'], x['val']))
             #print('d', di)
         F1 = 0
@@ -332,7 +367,7 @@ def graph_data(s):
             print(data_avanti_stringa)
             return data_avanti_stringa
 
-        def show_custom_popup():
+        '''def show_custom_popup():
             popup = tk.Toplevel()
             popup.title("Pop-up Personalizzato")
             popup.geometry("300x150")
@@ -348,7 +383,7 @@ def graph_data(s):
         def run_tkinter():
             root = tk.Tk()
             root.withdraw() # Nasconde la finestra principale
-            show_custom_popup()
+            show_custom_popup()'''
 
         # Esegui il codice tkinter nel thread UI
         #thread = threading.Thread(target=run_tkinter)
@@ -375,26 +410,32 @@ def graph_data(s):
 
         doc_ref = db.collection('sensors').document(s+'_prediction')
         entity_prediction = doc_ref.get()
-        print('new entry inizio', new_entry)
+        '''doc_ref_scost = db.collection('sensors').document(s + '_scostamenti')
+        entity_scost = doc_ref_scost.get()'''
+        #print('new entry inizio', new_entry)
+        base_url = 'http://localhost'
+        '''
         try:
             last_prediction = entity_prediction.to_dict()['prediction']
-            #print('last predicrtion try: ', last_prediction[0])
+            ##print('last predicrtion try: ', last_prediction[0])
             #print("Try => non primo giro") #se non è vuoto allora calcoliamo
             #print('new entry', new_entry)
             #print('last prediction VAL', last_prediction[0]['pred'])
-            scostamento = new_entry - last_prediction['pred']
+            #scostamento = new_entry - last_prediction[0]['pred']
+            #r2 = post(f'{base_url}/sensors/scostamenti/{s}', data={'data_scost': new_date, 'scostamento': scostamento})
             #print('scostamento', scostamento)
         except Exception:
             print("Exception => primo giro")
+        '''
 
         # Prevedi i consumi per le date future
         consumi_previsti = modello.predict(numeri_futuri)
         #print('consumi previsti',consumi_previsti[0])
         prima_previsione = consumi_previsti[0]
-        base_url = 'http://localhost'
         #print("DATE FUTUREEEEE: ", date_future[0])
         #print("Consumi: ", consumi_previsti[0])
         r1 = post(f'{base_url}/sensors/prediction/{s}', data={'data_prev':date_future[0],'prediction': consumi_previsti[0]})
+
 
         # Stampa dei risultati
         #print("--------------------------------Consumi previsti:")
@@ -403,8 +444,14 @@ def graph_data(s):
 
         de = []
         dp = []
-        de.append(['Data', s])
-        dp.append(['Number', 'Previsione '+s])
+        ds = []
+        dap = []
+        dan = []
+        de.append(['Data', 'Serie Storica'])
+        dp.append(['Data', 'Previsione '])
+        ds.append(['Data', 'Scostamento'])
+        dap.append(['Data', 'Anomalia Negativa'])
+        dan.append(['Data', 'Anomalia Positiva'])
         # x la data
         # y i valori
 
@@ -412,18 +459,68 @@ def graph_data(s):
             de.append([x['date'], x['val']])
             #print('x,y', (x['date'], x['val']))
             #print('d', de)
-        for x in entity_prediction.to_dict()['prediction']:
-            dp.append([x['date'], x['pred']])
-        for y in range(len(date_future)):
-            if(y>0): #la prima previsione è considerata nel ciclo sopra
-                #print('y', y)
-                #print(date_future[y][0])
-                #print('y in data', datetime.datetime.fromordinal(date_future[y]))
-                dp.append([date_future[y][0], consumi_previsti[y]])
+        if entity_prediction.exists:
+            for x in entity_prediction.to_dict()['prediction']:
+                dp.append([x['date'], x['pred']])
+            for y in range(len(date_future)):
+                if(y>0): #la prima previsione è considerata nel ciclo sopra
+                    #print('y', y)
+                    #print(date_future[y][0])
+                    #print('y in data', datetime.datetime.fromordinal(date_future[y]))
+                    dp.append([date_future[y][0], consumi_previsti[y]])
+                    #print('x,y', (x['date'], x['val']))
+                    #print('d', de)
+            for x in entity.to_dict()['energia']:
+                for y in entity_prediction.to_dict()['prediction']:
+                    #print('Data di energia: ', x['date'])
+                    #print('Data di prev: ', str(y['date']))
+                    if (x['date']==str(y['date'])):
+                        #print('Sono nell if date uguali')
+                        scost = x['val'] - y['pred']
+                        #print('scost: ', scost)
+                        ds.append([x['date'],scost])
+            somma_scost = 0
+            print("calcolo media:", ds)
+            for i in ds:
+                print("Sono dentro ds: ", i)
+                try:
+                    if i[1] > 0:
+                        somma_scost += i[1]
+                    else:
+                        somma_scost += ((i[1])*(-1))
+                except:
+                    print("Sono al primo giro, salto header")
+            num_elem = len(ds)
+            media = somma_scost / num_elem
+            print("media: ", media)
+            for i in ds:
+                print(i)
+                try:
+                    if (i[1] < -media):
+                        print("Sono in dap")
+                        #print('Anomalia_pos')
+                        dap.append([i[0],i[1]])
+                    if (i[1] > media):
+                        print("Sono in dan")
+                        #print('Anomalia_neg')
+                        dan.append([i[0], i[1]])
+                except:
+                    print("Sono al primo giro, salto header")
+            print('ds: ', ds)
+            print('dap: ', dap)
+            print('dan: ', dan)
+            print('dp: ', dp)
+            print('de: ', de)
+        '''if entity_scost.exists:
+            for x in entity_scost.to_dict()['scostamento']:
+                ds.append([x['date'], x['scostamento']])
+                if float(x['scostamento'])>0.005 or float(x['scostamento'])<-0.005:
+                    anomalia = x['scostamento']
+                    da.append([x['date'], anomalia])
                 #print('x,y', (x['date'], x['val']))
-                #print('d', de)
-        #print(dp)
-        return render_template('graph.html',sensor=s,data=json.dumps(di), data2=json.dumps(d1), data3=json.dumps(de), data4=json.dumps(dp))
+            print('ds', ds)
+            print('da',da)'''
+        return render_template('graph.html',sensor=s,data=json.dumps(di), data2=json.dumps(d1), data3=json.dumps(de), data4=json.dumps(dp), data5=json.dumps(ds), data6=json.dumps(dap), data7=json.dumps(dan))
     else:
         return redirect(url_for('static', filename='sensor404.html'))
 
@@ -436,14 +533,17 @@ def login():
     username = request.values['u']
     password = request.values['p']
     db = firestore.Client.from_service_account_json('Credentials.json')
-    user = db.collection('utenti').document(username).get()
-    if user.exists and user.to_dict()['password']==password:
+    user_get = db.collection('utenti').document(username).get()
+    user = db.collection('utenti').document(username)
+
+    if user_get.exists and user_get.to_dict()['password']==password:
         login_user(User(username))
-        next_page = request.args.get('/static/home.html')
-        if not next_page:
-            next_page = '/static/home.html'
-        return redirect(next_page)
-    return redirect('/static/login.html')
+        if username == 'gaia':
+            return redirect('/')
+        else:
+            #next_page = request.args.get('/static/home_utente.html')
+            return redirect('/')
+    return redirect('/static/login_post_errore.html')
 
 @app.route('/logout')
 def logout():
@@ -451,9 +551,47 @@ def logout():
     logout_user()
     return redirect('/')
 
-@app.route('/home')
-def home():
-    return redirect('/static/home.html')
+@app.route('/elimina_utente', methods=['POST'])
+def eliminautente():
+    if current_user.username == 'gaia':
+        username = request.values['u']
+        db = firestore.Client.from_service_account_json('Credentials.json')
+        user_get = db.collection('utenti').document(username).get()
+        user = db.collection('utenti').document(username)
+        if user_get.exists:
+            if username != 'gaia':
+                user.delete()
+            else:
+                return redirect('/static/errore_eliminazione_utente.html')
+            return redirect('/static/utente_eliminato.html')
+        else:
+            return redirect('/static/errore_eliminazione_utente.html')
+    else:
+        return redirect('/static/reserved_admin.html')
+
+@app.route('/')
+@app.route('/main')
+def main():
+    return redirect('/static/main.html')
+
+@app.route('/home_admin')
+@login_required
+def home_admin():
+    if current_user.username == 'gaia':
+        if request.method == 'GET':
+            return redirect('/static/home_admin.html')
+    else:
+        return redirect('/static/reserved_admin.html')
+
+@app.route('/home_utente')
+@login_required
+def home_utente():
+    return redirect('/static/home_utente.html')
+
+@app.route('/Contatti')
+@login_required
+def contatti():
+    return redirect('/static/Contatti.html')
 
 @app.route('/adduser', methods=['GET','POST'])
 @login_required
@@ -465,9 +603,14 @@ def adduser():
             username = request.values['u']
             password = request.values['p']
             db = firestore.Client.from_service_account_json('Credentials.json')
+            user_get = db.collection('utenti').document(username).get()
             user = db.collection('utenti').document(username)
-            user.set({'username':username,'password':password})
-            return redirect('/static/utente_presente.html')
+            if user_get.exists:
+                user.set({'username': username, 'password': password})
+                return redirect('/static/utente_modificato.html')
+            else:
+                user.set({'username': username, 'password': password})
+                return redirect('/static/utente_inserito.html')
     else:
         return redirect('/')
 

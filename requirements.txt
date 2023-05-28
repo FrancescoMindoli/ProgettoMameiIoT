@@ -3,3 +3,8 @@ paho-mqtt
 google-cloud-firestore
 google
 flask-login
+numpy
+sklearn
+matplotlib
+tkinter
+tk
